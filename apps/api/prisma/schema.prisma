@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://gentrack:gentrack123@localhost:5432/gentrack"
+}
+
+// ─── ENUMS ───────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  COMMERCIAL_AGENT
+  PROCUREMENT_AGENT
+  PHASE_SUPERVISOR
+  OPERATOR
+  QC_DELIVERY_AGENT
+}
+
+enum EngineType {
+  STANDARD
+  INSONORISE
+  AUTO
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PRODUCTION
+  TESTING
+  QC
+  DELIVERED
+  ARCHIVED
+}
+
+enum PhaseStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum MachineStatus {
+  OPERATIONAL
+  EN_PANNE
+}
+
+// ─── USERS ───────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  phaseEntries  PhaseEntry[]
+  supervisedPhases ProductionPhase[] @relation("PhaseSupervisor")
+}
+
+// ─── SERIAL NUMBER CONFIG ─────────────────────────────
+
+model SerialConfig {
+  id        String   @id @default(cuid())
+  prefix    String   // e.g. "GEN"
+  separator String   @default("-")
+  includeYear Boolean @default(true)
+  padLength Int      @default(4) // e.g. 0042
+  lastNumber Int     @default(0)
+  lastYear  Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+// ─── COMPONENT TYPES (admin configurable) ────────────
+
+model ComponentType {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "Moteur", "Alternateur"
+  isRequired  Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  components  EngineComponent[]
+}
+
+// ─── PRODUCTION ORDER ────────────────────────────────
+
+model ProductionOrder {
+  id           String      @id @default(cuid())
+  serialNumber String      @unique
+  qrCode       String?
+  engineType   EngineType
+  clientName   String
+  clientPhone  String?
+  clientEmail  String?
+  requirements String?
+  status       OrderStatus @default(PENDING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deliveredAt  DateTime?
+
+  // Relations
+  components      EngineComponent[]
+  productionPhases ProductionPhase[]
+  warranty        Warranty?
+}
+
+// ─── ENGINE COMPONENTS (filled by procurement agent) ─
+
+model EngineComponent {
+  id              String   @id @default(cuid())
+  serialNumber    String
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  order           ProductionOrder @relation(fields: [orderId], references: [id])
+  orderId         String
+
+  componentType   ComponentType @relation(fields: [componentTypeId], references: [id])
+  componentTypeId String
+}
+
+// ─── MACHINES ────────────────────────────────────────
+
+model Machine {
+  id          String        @id @default(cuid())
+  name        String        // e.g. "Plieuse Amada"
+  phase       Int           // which phase it belongs to
+  status      MachineStatus @default(OPERATIONAL)
+  minOperators Int          @default(1)
+  maxOperators Int          @default(2)
+  notes       String?
+  updatedAt   DateTime      @updatedAt
+
+  phaseEntries PhaseEntry[]
+}
+
+// ─── PRODUCTION PHASES ───────────────────────────────
+
+model ProductionPhase {
+  id           String      @id @default(cuid())
+  phaseNumber  Int         // 1 to 8
+  status       PhaseStatus @default(PENDING)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  notes        String?
+  delayMinutes Int?        // calculated delay
+
+  order        ProductionOrder @relation(fields: [orderId], references: [id])
+  orderId      String
+
+  supervisor   User?   @relation("PhaseSupervisor", fields: [supervisorId], references: [id])
+  supervisorId String?
+
+  entries      PhaseEntry[]
+
+  @@unique([orderId, phaseNumber])
+}
+
+// ─── PHASE ENTRIES (operator actions) ────────────────
+
+model PhaseEntry {
+  id          String   @id @default(cuid())
+  action      String   // e.g. "started", "completed", "blocked"
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  phase       ProductionPhase @relation(fields: [phaseId], references: [id])
+  phaseId     String
+
+  operator    User   @relation(fields: [operatorId], references: [id])
+  operatorId  String
+
+  machine     Machine? @relation(fields: [machineId], references: [id])
+  machineId   String?
+}
+
+// ─── WARRANTY ────────────────────────────────────────
+
+model Warranty {
+  id          String   @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime
+  conditions  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  order       ProductionOrder @relation(fields: [orderId], references: [id])
+  orderId     String  @unique
+}
+
+// ─── DOCUMENT SETTINGS (admin configurable) ──────────
+
+model DocumentSettings {
+  id          String   @id @default(cuid())
+  companyName String
+  logoUrl     String?
+  headerText  String?
+  footerText  String?
+  updatedAt   DateTime @updatedAt
+}
