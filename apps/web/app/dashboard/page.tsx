@@ -45,6 +45,14 @@ export default function DashboardPage() {
             <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-1 rounded-md">
               {user.role.replace('_', ' ')}
             </span>
+           {['SUPER_ADMIN', 'ADMIN'].includes(user.role) && (
+              <button
+                onClick={() => router.push('/dashboard/admin')}
+                className="text-gray-400 hover:text-white text-sm transition-colors"
+              >
+                Admin
+              </button>
+            )}
             <button
               onClick={() => { logout(); router.push('/login') }}
               className="text-gray-400 hover:text-white text-sm transition-colors"

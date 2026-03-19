@@ -4,7 +4,7 @@ import jwtPlugin from './plugins/jwt'
 import rbacPlugin from './plugins/rbac'
 import { authRoutes } from './modules/auth/auth.routes'
 import { orderRoutes } from './modules/orders/orders.routes'
-
+import { adminRoutes } from './modules/admin/admin.routes'
 const app = Fastify({ logger: true })
 
 app.register(cors, {
@@ -16,7 +16,7 @@ app.register(jwtPlugin)
 app.register(rbacPlugin)
 app.register(authRoutes)
 app.register(orderRoutes)
-
+app.register(adminRoutes)
 app.get('/health', async () => {
   return { status: 'ok', app: 'GenTrack API' }
 })
