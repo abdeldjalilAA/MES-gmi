@@ -3,13 +3,12 @@ import { prisma } from '../../lib/prisma'
 
 export async function orderRoutes(fastify: FastifyInstance) {
 
-  // CREATE ORDER (commercial agent + admin)
+  // CREATE ORDER
   fastify.post('/orders', {
     onRequest: [fastify.authenticate, fastify.authorize(['SUPER_ADMIN', 'ADMIN', 'COMMERCIAL_AGENT'])]
   } as any, async (request, reply) => {
-    const { clientName, clientPhone, clientEmail, engineType, requirements } = request.body as any
+    const { clientName, clientPhone, clientEmail, enclosureType, controlType, requirements } = request.body as any
 
-    // Generate serial number
     const config = await prisma.serialConfig.findFirst()
     const year = new Date().getFullYear()
 
@@ -46,12 +45,12 @@ export async function orderRoutes(fastify: FastifyInstance) {
         clientName,
         clientPhone,
         clientEmail,
-        engineType,
+        enclosureType,
+        controlType,
         requirements,
       }
     })
 
-    // Auto-create all 8 phases for this order
     await prisma.productionPhase.createMany({
       data: Array.from({ length: 8 }, (_, i) => ({
         phaseNumber: i + 1,
@@ -68,9 +67,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
   } as any, async (request, reply) => {
     const orders = await prisma.productionOrder.findMany({
       include: {
-        productionPhases: {
-          orderBy: { phaseNumber: 'asc' }
-        },
+        productionPhases: { orderBy: { phaseNumber: 'asc' } },
         _count: { select: { components: true } }
       },
       orderBy: { createdAt: 'desc' }
@@ -78,7 +75,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.send(orders)
   })
 
-  // GET SINGLE ORDER BY SERIAL (QR scan)
+  // GET BY SERIAL (QR scan)
   fastify.get('/orders/serial/:serial', {
     onRequest: [fastify.authenticate]
   } as any, async (request, reply) => {
@@ -87,7 +84,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
     const order = await prisma.productionOrder.findUnique({
       where: { serialNumber: serial },
       include: {
-        components: { include: { componentType: true } },
+        components: { include: { equipmentModel: { include: { brand: true } } } },
         productionPhases: {
           orderBy: { phaseNumber: 'asc' },
           include: {
@@ -109,7 +106,38 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.send(order)
   })
 
-  // UPDATE PHASE STATUS (operator/supervisor)
+  // GET BY ID
+  fastify.get('/orders/:id', {
+    onRequest: [fastify.authenticate]
+  } as any, async (request, reply) => {
+    const { id } = request.params as any
+
+    const order = await prisma.productionOrder.findUnique({
+      where: { id },
+      include: {
+        components: { include: { equipmentModel: { include: { brand: true } } } },
+        productionPhases: {
+          orderBy: { phaseNumber: 'asc' },
+          include: {
+            supervisor: { select: { name: true, role: true } },
+            entries: {
+              include: {
+                operator: { select: { name: true, role: true } },
+                machine: true
+              },
+              orderBy: { createdAt: 'asc' }
+            }
+          }
+        },
+        warranty: true
+      }
+    })
+
+    if (!order) return reply.status(404).send({ error: 'Order not found' })
+    return reply.send(order)
+  })
+
+  // PHASE ENTRY
   fastify.post('/orders/:orderId/phases/:phaseNumber/entry', {
     onRequest: [fastify.authenticate]
   } as any, async (request, reply) => {
@@ -123,7 +151,6 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
     if (!phase) return reply.status(404).send({ error: 'Phase not found' })
 
-    // Create the entry log
     const entry = await prisma.phaseEntry.create({
       data: {
         action,
@@ -134,7 +161,6 @@ export async function orderRoutes(fastify: FastifyInstance) {
       }
     })
 
-    // Update phase status
     let phaseUpdate: any = {}
     if (action === 'started') {
       phaseUpdate = { status: 'IN_PROGRESS', startedAt: new Date() }
@@ -154,34 +180,22 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.status(201).send(entry)
   })
 
-  // GET SINGLE ORDER BY ID
-  fastify.get('/orders/:id', {
+  // ADD COMPONENT
+  fastify.post('/orders/:id/components', {
     onRequest: [fastify.authenticate]
   } as any, async (request, reply) => {
     const { id } = request.params as any
+    const { equipmentModelId, serialNumber, notes } = request.body as any
 
-    const order = await prisma.productionOrder.findUnique({
-      where: { id },
-      include: {
-        components: { include: { componentType: true } },
-        productionPhases: {
-          orderBy: { phaseNumber: 'asc' },
-          include: {
-            supervisor: { select: { name: true, role: true } },
-            entries: {
-              include: {
-                operator: { select: { name: true, role: true } },
-                machine: true
-              },
-              orderBy: { createdAt: 'asc' }
-            }
-          }
-        },
-        warranty: true
+    const component = await prisma.engineComponent.create({
+      data: {
+        serialNumber,
+        notes,
+        orderId: id,
+        equipmentModelId: equipmentModelId || null
       }
     })
 
-    if (!order) return reply.status(404).send({ error: 'Order not found' })
-    return reply.send(order)
+    return reply.status(201).send(component)
   })
 }

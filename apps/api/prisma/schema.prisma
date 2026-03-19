@@ -19,10 +19,24 @@ enum Role {
   QC_DELIVERY_AGENT
 }
 
-enum EngineType {
+enum EnclosureType {
   STANDARD
   INSONORISE
+}
+
+enum ControlType {
+  MANUEL
   AUTO
+  INVERSEUR_SEPARE
+}
+
+enum EquipmentCategory {
+  MOTEUR
+  ALTERNATEUR
+  ATS
+  BATTERIE
+  CARTE_COMMANDE
+  CHARGEUR
 }
 
 enum OrderStatus {
@@ -58,85 +72,99 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  phaseEntries  PhaseEntry[]
+  phaseEntries     PhaseEntry[]
   supervisedPhases ProductionPhase[] @relation("PhaseSupervisor")
 }
 
 // ─── SERIAL NUMBER CONFIG ─────────────────────────────
 
 model SerialConfig {
-  id        String   @id @default(cuid())
-  prefix    String   // e.g. "GEN"
-  separator String   @default("-")
-  includeYear Boolean @default(true)
-  padLength Int      @default(4) // e.g. 0042
-  lastNumber Int     @default(0)
-  lastYear  Int      @default(0)
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  prefix      String
+  separator   String   @default("-")
+  includeYear Boolean  @default(true)
+  padLength   Int      @default(4)
+  lastNumber  Int      @default(0)
+  lastYear    Int      @default(0)
+  updatedAt   DateTime @updatedAt
 }
 
-// ─── COMPONENT TYPES (admin configurable) ────────────
+// ─── EQUIPMENT CATALOG (admin managed) ───────────────
 
-model ComponentType {
-  id          String   @id @default(cuid())
-  name        String   @unique // e.g. "Moteur", "Alternateur"
-  isRequired  Boolean  @default(true)
-  isActive    Boolean  @default(true)
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
+model EquipmentBrand {
+  id        String            @id @default(cuid())
+  name      String
+  category  EquipmentCategory
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
 
-  components  EngineComponent[]
+  models    EquipmentModel[]
+
+  @@unique([name, category])
+}
+
+model EquipmentModel {
+  id        String   @id @default(cuid())
+  name      String
+  minKva    Float?
+  maxKva    Float?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  brand      EquipmentBrand  @relation(fields: [brandId], references: [id])
+  brandId    String
+
+  components EngineComponent[]
 }
 
 // ─── PRODUCTION ORDER ────────────────────────────────
 
 model ProductionOrder {
-  id           String      @id @default(cuid())
-  serialNumber String      @unique
-  qrCode       String?
-  engineType   EngineType
-  clientName   String
-  clientPhone  String?
-  clientEmail  String?
-  requirements String?
-  status       OrderStatus @default(PENDING)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  deliveredAt  DateTime?
+  id            String        @id @default(cuid())
+  serialNumber  String        @unique
+  qrCode        String?
+  enclosureType EnclosureType
+  controlType   ControlType
+  clientName    String
+  clientPhone   String?
+  clientEmail   String?
+  requirements  String?
+  status        OrderStatus   @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deliveredAt   DateTime?
 
-  // Relations
-  components      EngineComponent[]
+  components       EngineComponent[]
   productionPhases ProductionPhase[]
-  warranty        Warranty?
+  warranty         Warranty?
 }
 
-// ─── ENGINE COMPONENTS (filled by procurement agent) ─
+// ─── ENGINE COMPONENTS ────────────────────────────────
 
 model EngineComponent {
-  id              String   @id @default(cuid())
-  serialNumber    String
-  notes           String?
-  createdAt       DateTime @default(now())
+  id           String   @id @default(cuid())
+  serialNumber String
+  notes        String?
+  createdAt    DateTime @default(now())
 
-  order           ProductionOrder @relation(fields: [orderId], references: [id])
-  orderId         String
+  order            ProductionOrder @relation(fields: [orderId], references: [id])
+  orderId          String
 
-  componentType   ComponentType @relation(fields: [componentTypeId], references: [id])
-  componentTypeId String
+  equipmentModel   EquipmentModel? @relation(fields: [equipmentModelId], references: [id])
+  equipmentModelId String?
 }
 
 // ─── MACHINES ────────────────────────────────────────
 
 model Machine {
-  id          String        @id @default(cuid())
-  name        String        // e.g. "Plieuse Amada"
-  phase       Int           // which phase it belongs to
-  status      MachineStatus @default(OPERATIONAL)
-  minOperators Int          @default(1)
-  maxOperators Int          @default(2)
-  notes       String?
-  updatedAt   DateTime      @updatedAt
+  id           String        @id @default(cuid())
+  name         String
+  phase        Int
+  status       MachineStatus @default(OPERATIONAL)
+  minOperators Int           @default(1)
+  maxOperators Int           @default(2)
+  notes        String?
+  updatedAt    DateTime      @updatedAt
 
   phaseEntries PhaseEntry[]
 }
@@ -145,17 +173,17 @@ model Machine {
 
 model ProductionPhase {
   id           String      @id @default(cuid())
-  phaseNumber  Int         // 1 to 8
+  phaseNumber  Int
   status       PhaseStatus @default(PENDING)
   startedAt    DateTime?
   completedAt  DateTime?
   notes        String?
-  delayMinutes Int?        // calculated delay
+  delayMinutes Int?
 
   order        ProductionOrder @relation(fields: [orderId], references: [id])
   orderId      String
 
-  supervisor   User?   @relation("PhaseSupervisor", fields: [supervisorId], references: [id])
+  supervisor   User?  @relation("PhaseSupervisor", fields: [supervisorId], references: [id])
   supervisorId String?
 
   entries      PhaseEntry[]
@@ -163,39 +191,39 @@ model ProductionPhase {
   @@unique([orderId, phaseNumber])
 }
 
-// ─── PHASE ENTRIES (operator actions) ────────────────
+// ─── PHASE ENTRIES ────────────────────────────────────
 
 model PhaseEntry {
-  id          String   @id @default(cuid())
-  action      String   // e.g. "started", "completed", "blocked"
-  notes       String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  action     String
+  notes      String?
+  createdAt  DateTime @default(now())
 
-  phase       ProductionPhase @relation(fields: [phaseId], references: [id])
-  phaseId     String
+  phase      ProductionPhase @relation(fields: [phaseId], references: [id])
+  phaseId    String
 
-  operator    User   @relation(fields: [operatorId], references: [id])
-  operatorId  String
+  operator   User   @relation(fields: [operatorId], references: [id])
+  operatorId String
 
-  machine     Machine? @relation(fields: [machineId], references: [id])
-  machineId   String?
+  machine    Machine? @relation(fields: [machineId], references: [id])
+  machineId  String?
 }
 
 // ─── WARRANTY ────────────────────────────────────────
 
 model Warranty {
-  id          String   @id @default(cuid())
-  startDate   DateTime
-  endDate     DateTime
-  conditions  String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  startDate  DateTime
+  endDate    DateTime
+  conditions String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
 
-  order       ProductionOrder @relation(fields: [orderId], references: [id])
-  orderId     String  @unique
+  order   ProductionOrder @relation(fields: [orderId], references: [id])
+  orderId String          @unique
 }
 
-// ─── DOCUMENT SETTINGS (admin configurable) ──────────
+// ─── DOCUMENT SETTINGS ───────────────────────────────
 
 model DocumentSettings {
   id          String   @id @default(cuid())
