@@ -66,6 +66,8 @@ export async function orderRoutes(fastify: FastifyInstance) {
       data: { qrCode }
     })
 
+
+    
     return reply.status(201).send({ ...order, qrCode })
   })
 
@@ -184,7 +186,14 @@ export async function orderRoutes(fastify: FastifyInstance) {
       where: { id: phase.id },
       data: phaseUpdate
     })
-
+// Emit real-time update to all clients watching this order
+    fastify.io.to(`order:${orderId}`).emit('phase-updated', {
+      orderId,
+      phaseNumber: parseInt(phaseNumber),
+      status: phaseUpdate.status,
+      completedAt: phaseUpdate.completedAt,
+      delayMinutes: phaseUpdate.delayMinutes
+    })
     return reply.status(201).send(entry)
   })
 

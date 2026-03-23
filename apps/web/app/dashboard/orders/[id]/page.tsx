@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/store'
 import { api } from '@/lib/api'
+import { socket } from '@/lib/socket'
 
 const PHASE_NAMES: Record<number, string> = {
   1: 'Iron / Tôle Transformation',
@@ -46,6 +47,23 @@ export default function OrderDetailPage() {
       return res.data
     }
   })
+
+  // Socket.io — real-time phase updates
+  useEffect(() => {
+    if (!order?.id) return
+
+    socket.connect()
+    socket.emit('join-order', order.id)
+
+    socket.on('phase-updated', () => {
+      refetch()
+    })
+
+    return () => {
+      socket.off('phase-updated')
+      socket.disconnect()
+    }
+  }, [order?.id])
 
   const handlePhaseAction = async (orderId: string, phaseNumber: number, action: string) => {
     try {
@@ -106,9 +124,10 @@ export default function OrderDetailPage() {
             {order.clientPhone && <p className="text-gray-400 text-sm mt-1">{order.clientPhone}</p>}
           </div>
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <p className="text-gray-500 text-xs mb-1">Engine type</p>
-            <p className="text-white font-semibold">{order.engineType}</p>
-            {order.requirements && <p className="text-gray-400 text-sm mt-1 truncate">{order.requirements}</p>}
+            <p className="text-gray-500 text-xs mb-1">Engine specification</p>
+            <p className="text-white font-semibold">{order.enclosureType}</p>
+            <p className="text-gray-400 text-sm">{order.controlType?.replace('_', ' ')}</p>
+            {order.requirements && <p className="text-gray-500 text-xs mt-1 truncate">{order.requirements}</p>}
           </div>
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <p className="text-gray-500 text-xs mb-1">Progress</p>
@@ -120,8 +139,7 @@ export default function OrderDetailPage() {
                   className={`h-1.5 flex-1 rounded-full ${
                     phase.status === 'COMPLETED' ? 'bg-green-500' :
                     phase.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                    phase.status === 'BLOCKED' ? 'bg-red-500' :
-                    'bg-gray-700'
+                    phase.status === 'BLOCKED' ? 'bg-red-500' : 'bg-gray-700'
                   }`}
                 />
               ))}
@@ -136,14 +154,29 @@ export default function OrderDetailPage() {
           )}
         </div>
 
+        {/* Components */}
+        {order.components?.length > 0 && (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6">
+            <h2 className="text-white font-semibold mb-3">Components</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {order.components.map((comp: any) => (
+                <div key={comp.id} className="bg-gray-800 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs">{comp.equipmentModel?.brand?.category?.replace('_', ' ')}</p>
+                  <p className="text-white text-sm font-medium">
+                    {comp.equipmentModel?.brand?.name} {comp.equipmentModel?.name}
+                  </p>
+                  <p className="text-gray-400 text-xs font-mono mt-1">{comp.serialNumber}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Phases */}
         <h2 className="text-white font-semibold text-lg mb-4">Production Phases</h2>
         <div className="space-y-3">
           {order.productionPhases?.map((phase: any) => (
-            <div
-              key={phase.phaseNumber}
-              className="bg-gray-900 border border-gray-800 rounded-xl p-5"
-            >
+            <div key={phase.phaseNumber} className="bg-gray-900 border border-gray-800 rounded-xl p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${statusDot[phase.status]}`} />
@@ -156,8 +189,6 @@ export default function OrderDetailPage() {
                   <span className={`text-xs border px-2 py-1 rounded-md ${statusColor[phase.status]}`}>
                     {phase.status}
                   </span>
-
-                  {/* Action buttons */}
                   {phase.status === 'PENDING' && (
                     <button
                       onClick={() => handlePhaseAction(order.id, phase.phaseNumber, 'started')}
@@ -185,18 +216,32 @@ export default function OrderDetailPage() {
                 </div>
               </div>
 
-              {/* Timing info */}
               {phase.startedAt && (
                 <div className="mt-3 flex gap-4 text-xs text-gray-500">
-                  {phase.startedAt && (
-                    <span>Started: {new Date(phase.startedAt).toLocaleString()}</span>
-                  )}
+                  <span>Started: {new Date(phase.startedAt).toLocaleString()}</span>
                   {phase.completedAt && (
                     <span>Completed: {new Date(phase.completedAt).toLocaleString()}</span>
                   )}
-                  {phase.delayMinutes !== null && (
+                  {phase.delayMinutes !== null && phase.delayMinutes !== undefined && (
                     <span>Duration: {phase.delayMinutes} min</span>
                   )}
+                </div>
+              )}
+
+              {/* Phase entries log */}
+              {phase.entries?.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  {phase.entries.map((entry: any) => (
+                    <div key={entry.id} className="flex items-center gap-3 text-xs text-gray-500">
+                      <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                      <span className="text-gray-400">{entry.operator?.name}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${
+                        entry.action === 'completed' ? 'bg-green-500/10 text-green-400' :
+                        entry.action === 'started' ? 'bg-blue-500/10 text-blue-400' :
+                        'bg-red-500/10 text-red-400'
+                      }`}>{entry.action}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
