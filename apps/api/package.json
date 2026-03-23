@@ -15,11 +15,13 @@
     "dotenv": "^16.0.0",
     "fastify": "^4.28.0",
     "fastify-plugin": "^5.1.0",
-    "prisma": "^6.19.2"
+    "prisma": "^6.19.2",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.0.0",
+    "@types/qrcode": "^1.5.6",
     "nodemon": "^3.0.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.4.0"

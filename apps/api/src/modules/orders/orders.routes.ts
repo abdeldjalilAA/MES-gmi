@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../../lib/prisma'
-
+import QRCode from 'qrcode'
 export async function orderRoutes(fastify: FastifyInstance) {
 
   // CREATE ORDER
@@ -58,7 +58,15 @@ export async function orderRoutes(fastify: FastifyInstance) {
       }))
     })
 
-    return reply.status(201).send(order)
+    const qrData = `${process.env.APP_URL || 'http://localhost:3000'}/scan/${order.serialNumber}`
+    const qrCode = await QRCode.toDataURL(qrData)
+
+    await prisma.productionOrder.update({
+      where: { id: order.id },
+      data: { qrCode }
+    })
+
+    return reply.status(201).send({ ...order, qrCode })
   })
 
   // GET ALL ORDERS

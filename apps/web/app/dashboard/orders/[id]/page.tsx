@@ -99,7 +99,7 @@ export default function OrderDetailPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
 
         {/* Order header */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <p className="text-gray-500 text-xs mb-1">Client</p>
             <p className="text-white font-semibold">{order.clientName}</p>
@@ -127,6 +127,13 @@ export default function OrderDetailPage() {
               ))}
             </div>
           </div>
+          {order.qrCode && (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col items-center">
+              <p className="text-gray-500 text-xs mb-3">QR Code</p>
+              <img src={order.qrCode} alt="QR Code" className="w-32 h-32" />
+              <p className="text-gray-600 text-xs mt-2 font-mono">{order.serialNumber}</p>
+            </div>
+          )}
         </div>
 
         {/* Phases */}
