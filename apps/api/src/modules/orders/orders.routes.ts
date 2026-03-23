@@ -182,10 +182,49 @@ export async function orderRoutes(fastify: FastifyInstance) {
       phaseUpdate = { status: 'BLOCKED' }
     }
 
-    await prisma.productionPhase.update({
+   await prisma.productionPhase.update({
       where: { id: phase.id },
       data: phaseUpdate
     })
+
+    // Auto-update order status based on phase completion
+    if (action === 'completed') {
+      if (parseInt(phaseNumber) === 6) {
+        await prisma.productionOrder.update({
+          where: { id: orderId },
+          data: { status: 'TESTING' }
+        })
+      } else if (parseInt(phaseNumber) === 7) {
+        await prisma.productionOrder.update({
+          where: { id: orderId },
+          data: { status: 'QC' }
+        })
+      } else if (parseInt(phaseNumber) === 8) {
+        // Get warranty duration from settings
+        const settings = await prisma.documentSettings.findFirst()
+        const warrantyMonths = settings?.warrantyMonths || 12
+        const startDate = new Date()
+        const endDate = new Date()
+        endDate.setMonth(endDate.getMonth() + warrantyMonths)
+
+        await prisma.productionOrder.update({
+          where: { id: orderId },
+          data: { status: 'DELIVERED', deliveredAt: new Date() }
+        })
+
+        // Create warranty
+        await prisma.warranty.upsert({
+          where: { orderId },
+          create: { orderId, startDate, endDate, isActive: true },
+          update: { startDate, endDate, isActive: true }
+        })
+      } else if (parseInt(phaseNumber) === 1) {
+        await prisma.productionOrder.update({
+          where: { id: orderId },
+          data: { status: 'IN_PRODUCTION' }
+        })
+      }
+    }
 // Emit real-time update to all clients watching this order
     fastify.io.to(`order:${orderId}`).emit('phase-updated', {
       orderId,

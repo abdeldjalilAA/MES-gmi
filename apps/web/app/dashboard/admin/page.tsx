@@ -37,6 +37,38 @@ export default function AdminPage() {
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState('OPERATOR')
 
+  const [companyName, setCompanyName] = useState('')
+  const [headerText, setHeaderText] = useState('')
+  const [footerText, setFooterText] = useState('')
+  const [warrantyMonths, setWarrantyMonths] = useState('12')
+
+
+
+  const { data: docSettings } = useQuery({
+    queryKey: ['doc-settings'],
+    queryFn: async () => {
+      const res = await api.get('/admin/document-settings')
+      return res.data
+    }
+  })
+
+  useEffect(() => {
+    if (docSettings) {
+      setCompanyName(docSettings.companyName || '')
+      setHeaderText(docSettings.headerText || '')
+      setFooterText(docSettings.footerText || '')
+      setWarrantyMonths(String(docSettings.warrantyMonths || 12))
+    }
+  }, [docSettings])
+
+
+  const saveDocSettings = useMutation({
+    mutationFn: () => api.post('/admin/document-settings', {
+      companyName, headerText, footerText, warrantyMonths
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['doc-settings'] })
+  })
+
   useEffect(() => {
     if (!user) router.push('/login')
     if (user && !['SUPER_ADMIN', 'ADMIN'].includes(user.role)) router.push('/dashboard')
@@ -133,10 +165,11 @@ export default function AdminPage() {
 
   if (!user) return null
 
-  const tabs = [
+ const tabs = [
     { id: 'brands', label: 'Equipment catalog' },
     { id: 'serial', label: 'Serial number' },
     { id: 'users', label: 'User management' },
+    { id: 'documents', label: 'Document settings' },
   ]
 
   return (
@@ -356,6 +389,59 @@ export default function AdminPage() {
               >
                 {saveSerialConfig.isPending ? 'Saving...' : 'Save configuration'}
               </button>
+            </div>
+          </div>
+
+          
+        )}{/* ── DOCUMENT SETTINGS ── */}
+        {activeTab === 'documents' && (
+          <div className="max-w-md">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
+              <h3 className="text-white font-semibold">Company & document settings</h3>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Company name</label>
+                <input value={companyName} onChange={e => setCompanyName(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                  placeholder="GMI — Groupe Moteur Industriel"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Document header text</label>
+                <input value={headerText} onChange={e => setHeaderText(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                  placeholder="Zone industrielle, Alger"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Document footer text</label>
+                <input value={footerText} onChange={e => setFooterText(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                  placeholder="Tél: 023 XX XX XX — contact@company.dz"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Warranty duration (months)</label>
+                <input type="number" value={warrantyMonths}
+                  onChange={e => setWarrantyMonths(e.target.value)}
+                  min="1" max="120"
+                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <button
+                onClick={() => saveDocSettings.mutate()}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-3 rounded-lg transition-colors"
+              >
+                {saveDocSettings.isPending ? 'Saving...' : 'Save settings'}
+              </button>
+
+              {saveDocSettings.isSuccess && (
+                <p className="text-green-400 text-sm text-center">Saved successfully</p>
+              )}
             </div>
           </div>
         )}

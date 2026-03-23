@@ -225,11 +225,13 @@ model Warranty {
 
 // ─── DOCUMENT SETTINGS ───────────────────────────────
 
+
 model DocumentSettings {
-  id          String   @id @default(cuid())
-  companyName String
-  logoUrl     String?
-  headerText  String?
-  footerText  String?
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  companyName       String
+  logoUrl           String?
+  headerText        String?
+  footerText        String?
+  warrantyMonths    Int      @default(12)
+  updatedAt         DateTime @updatedAt
 }

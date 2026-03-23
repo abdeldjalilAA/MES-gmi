@@ -81,6 +81,16 @@ export default function OrderDetailPage() {
     documentTitle: `Ordre-Fabrication-${order?.serialNumber}`,
   })
 
+const { data: docSettings } = useQuery({
+    queryKey: ['doc-settings'],
+    queryFn: async () => {
+      const res = await api.get('/admin/document-settings')
+      return res.data
+    }
+  })
+
+
+
   if (!user || isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -96,6 +106,7 @@ export default function OrderDetailPage() {
       </div>
     )
   }
+  
 
   const completedPhases = order.productionPhases?.filter((p: any) => p.status === 'COMPLETED').length
 
@@ -266,7 +277,7 @@ export default function OrderDetailPage() {
       </main>
        {/* Print document — off screen */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
-        <OrderFabricationDoc ref={printRef} order={order} />
+       <OrderFabricationDoc ref={printRef} order={order} companySettings={docSettings} />
       </div>
     </div>
   )

@@ -191,4 +191,42 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     return reply.send(orders)
   })
+
+// DOCUMENT SETTINGS
+  fastify.get('/admin/document-settings', {
+    onRequest: [fastify.authenticate]
+  } as any, async (request, reply) => {
+    const settings = await prisma.documentSettings.findFirst()
+    return reply.send(settings)
+  })
+
+  fastify.post('/admin/document-settings', {
+    onRequest: adminOnly
+  } as any, async (request, reply) => {
+    const { companyName, headerText, footerText, warrantyMonths } = request.body as any
+    const existing = await prisma.documentSettings.findFirst()
+
+    if (existing) {
+      const updated = await prisma.documentSettings.update({
+        where: { id: existing.id },
+        data: { companyName, headerText, footerText, warrantyMonths: parseInt(warrantyMonths) }
+      })
+      return reply.send(updated)
+    } else {
+      const created = await prisma.documentSettings.create({
+        data: { companyName, headerText, footerText, warrantyMonths: parseInt(warrantyMonths) }
+      })
+      return reply.send(created)
+    }
+  })
+
+  // WARRANTY — get by order id
+  fastify.get('/orders/:id/warranty', {
+    onRequest: [fastify.authenticate]
+  } as any, async (request, reply) => {
+    const { id } = request.params as any
+    const warranty = await prisma.warranty.findUnique({ where: { orderId: id } })
+    return reply.send(warranty)
+  })
+
 }
