@@ -158,4 +158,37 @@ export async function adminRoutes(fastify: FastifyInstance) {
     })
     return reply.send({ id: updated.id, isActive: updated.isActive })
   })
+  // ARCHIVE — all orders with filters
+  fastify.get('/archive', {
+    onRequest: [fastify.authenticate]
+  } as any, async (request, reply) => {
+    const { year, enclosureType, controlType, clientName, status } = request.query as any
+
+    const where: any = {}
+
+    if (year) {
+      where.createdAt = {
+        gte: new Date(`${year}-01-01`),
+        lte: new Date(`${year}-12-31T23:59:59`)
+      }
+    }
+    if (enclosureType) where.enclosureType = enclosureType
+    if (controlType) where.controlType = controlType
+    if (status) where.status = status
+    if (clientName) {
+      where.clientName = { contains: clientName, mode: 'insensitive' }
+    }
+
+    const orders = await prisma.productionOrder.findMany({
+      where,
+      include: {
+        productionPhases: { orderBy: { phaseNumber: 'asc' } },
+        components: { include: { equipmentModel: { include: { brand: true } } } },
+        _count: { select: { components: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return reply.send(orders)
+  })
 }
