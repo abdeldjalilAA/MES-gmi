@@ -5,7 +5,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { socket } from '@/lib/socket'
-
+import { useRef } from 'react'
+import { useReactToPrint } from 'react-to-print'
+import { OrderFabricationDoc } from '@/components/documents/OrderFabricationDoc'
 const PHASE_NAMES: Record<number, string> = {
   1: 'Iron / Tôle Transformation',
   2: 'Welding + Rouleuse + Cisaille',
@@ -73,6 +75,11 @@ export default function OrderDetailPage() {
       alert(err.response?.data?.error || 'Action failed')
     }
   }
+  const printRef = useRef<HTMLDivElement>(null)
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Ordre-Fabrication-${order?.serialNumber}`,
+  })
 
   if (!user || isLoading) {
     return (
@@ -111,7 +118,15 @@ export default function OrderDetailPage() {
           <span className={`text-xs border px-2 py-1 rounded-md ${statusColor[order.status]}`}>
             {order.status}
           </span>
+           <button
+              onClick={() => handlePrint()}
+              className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              🖨 Print document
+            </button>
+            
         </div>
+       
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -247,7 +262,12 @@ export default function OrderDetailPage() {
             </div>
           ))}
         </div>
+        
       </main>
+       {/* Print document — off screen */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+        <OrderFabricationDoc ref={printRef} order={order} />
+      </div>
     </div>
   )
 }
