@@ -9,7 +9,11 @@ export default function Home() {
 
   useEffect(() => {
     if (user) {
-      router.push('/dashboard')
+      if (['OPERATOR', 'PHASE_SUPERVISOR'].includes(user.role)) {
+        router.push('/operator')
+      } else {
+        router.push('/dashboard')
+      }
     } else {
       router.push('/login')
     }

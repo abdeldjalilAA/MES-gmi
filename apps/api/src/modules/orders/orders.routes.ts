@@ -215,4 +215,28 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
     return reply.status(201).send(component)
   })
+  // GET ACTIVE ORDERS FOR OPERATOR VIEW
+  fastify.get('/operator/orders', {
+    onRequest: [fastify.authenticate]
+  } as any, async (request, reply) => {
+    const orders = await prisma.productionOrder.findMany({
+      where: {
+        status: { in: ['PENDING', 'IN_PRODUCTION', 'TESTING', 'QC'] }
+      },
+      include: {
+        productionPhases: {
+          orderBy: { phaseNumber: 'asc' },
+          include: {
+            entries: {
+              include: { operator: { select: { name: true } } },
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    return reply.send(orders)
+  })
 }
