@@ -1,8 +1,8 @@
 'use client'
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
+import { useEffect, useState } from 'react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -27,16 +27,31 @@ export default function LoginPage() {
     }
   }
 
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [companyName, setCompanyName] = useState('GenTrack')
+
+  useEffect(() => {
+    api.get('/admin/document-settings').then(res => {
+      if (res.data?.logoUrl) setLogoUrl(res.data.logoUrl)
+      if (res.data?.companyName) setCompanyName(res.data.companyName)
+    }).catch(() => {})
+  }, [])
+
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
 
         {/* Logo / Title */}
+      {/* Logo / Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-            <span className="text-white text-2xl font-bold">G</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white">GenTrack</h1>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="h-16 object-contain mx-auto mb-4" />
+          ) : (
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+              <span className="text-white text-2xl font-bold">G</span>
+            </div>
+          )}
+          <h1 className="text-3xl font-bold text-white">{companyName}</h1>
           <p className="text-gray-400 mt-1">Production Management System</p>
         </div>
 

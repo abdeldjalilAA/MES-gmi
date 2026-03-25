@@ -193,28 +193,32 @@ export async function adminRoutes(fastify: FastifyInstance) {
   })
 
 // DOCUMENT SETTINGS
-  fastify.get('/admin/document-settings', {
-    onRequest: [fastify.authenticate]
-  } as any, async (request, reply) => {
+  fastify.get('/admin/document-settings', async (request, reply) => {
     const settings = await prisma.documentSettings.findFirst()
     return reply.send(settings)
   })
 
-  fastify.post('/admin/document-settings', {
+ fastify.post('/admin/document-settings', {
     onRequest: adminOnly
   } as any, async (request, reply) => {
-    const { companyName, headerText, footerText, warrantyMonths } = request.body as any
+    const { companyName, headerText, footerText, warrantyMonths, logoUrl } = request.body as any
     const existing = await prisma.documentSettings.findFirst()
 
     if (existing) {
       const updated = await prisma.documentSettings.update({
         where: { id: existing.id },
-        data: { companyName, headerText, footerText, warrantyMonths: parseInt(warrantyMonths) }
+        data: {
+          companyName,
+          headerText,
+          footerText,
+          warrantyMonths: parseInt(warrantyMonths),
+          ...(logoUrl !== undefined ? { logoUrl } : {})
+        }
       })
       return reply.send(updated)
     } else {
       const created = await prisma.documentSettings.create({
-        data: { companyName, headerText, footerText, warrantyMonths: parseInt(warrantyMonths) }
+        data: { companyName, headerText, footerText, warrantyMonths: parseInt(warrantyMonths), logoUrl }
       })
       return reply.send(created)
     }

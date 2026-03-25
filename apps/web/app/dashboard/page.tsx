@@ -20,6 +20,13 @@ export default function DashboardPage() {
       return res.data
     }
   })
+  const { data: docSettings } = useQuery({
+    queryKey: ['doc-settings'],
+    queryFn: async () => {
+      const res = await api.get('/admin/document-settings')
+      return res.data
+    }
+  })
 
   if (!user) return null
 
@@ -35,10 +42,19 @@ export default function DashboardPage() {
       <nav className="bg-gray-900 border-b border-gray-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">G</span>
-            </div>
-            <span className="text-white font-semibold text-lg">GenTrack</span>
+           <div className="flex items-center gap-3">
+            {docSettings?.logoUrl ? (
+              <img src={docSettings.logoUrl} alt="Logo" className="h-8 object-contain" />
+            ) : (
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">G</span>
+              </div>
+            )}
+            <span className="text-white font-semibold text-lg">
+              {docSettings?.companyName || 'GenTrack'}
+            </span>
+          </div>
+            <span className="text-white font-semibold text-lg"></span>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-gray-400 text-sm">{user.name}</span>

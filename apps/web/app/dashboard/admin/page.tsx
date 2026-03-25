@@ -394,10 +394,46 @@ export default function AdminPage() {
 
           
         )}{/* ── DOCUMENT SETTINGS ── */}
+       {/* ── DOCUMENT SETTINGS ── */}
         {activeTab === 'documents' && (
           <div className="max-w-md">
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
               <h3 className="text-white font-semibold">Company & document settings</h3>
+
+              {/* Logo upload */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Company logo</label>
+                {docSettings?.logoUrl && (
+                  <div className="mb-3 p-3 bg-gray-800 rounded-lg flex items-center gap-3">
+                    <img src={docSettings.logoUrl} alt="Logo" className="h-12 object-contain" />
+                    <button
+                      onClick={() => saveDocSettings.mutate()}
+                      className="text-red-400 hover:text-red-300 text-xs"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = async (ev) => {
+                      const base64 = ev.target?.result as string
+                      await api.post('/admin/document-settings', {
+                        companyName, headerText, footerText,
+                        warrantyMonths, logoUrl: base64
+                      })
+                      queryClient.invalidateQueries({ queryKey: ['doc-settings'] })
+                    }
+                    reader.readAsDataURL(file)
+                  }}
+                  className="w-full bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-600 file:text-white file:text-xs cursor-pointer"
+                />
+              </div>
 
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Company name</label>

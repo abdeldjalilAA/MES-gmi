@@ -18,9 +18,19 @@ export const OrderFabricationDoc = forwardRef<HTMLDivElement, Props>(
         <div className="border-b-2 border-gray-800 pb-6 mb-6">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {companySettings?.companyName || 'GMI — Groupe Moteur Industriel'}
-              </h1>
+            <div className="flex items-center gap-4">
+              {companySettings?.logoUrl && (
+                <img src={companySettings.logoUrl} alt="Logo" className="h-14 object-contain" />
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {companySettings?.companyName || 'GMI — Groupe Moteur Industriel'}
+                </h1>
+                {companySettings?.headerText && (
+                  <p className="text-gray-600 text-sm mt-1">{companySettings.headerText}</p>
+                )}
+              </div>
+            </div>
               {companySettings?.headerText && (
                 <p className="text-gray-600 text-sm mt-1">{companySettings.headerText}</p>
               )}
