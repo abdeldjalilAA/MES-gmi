@@ -129,6 +129,14 @@ const { data: docSettings } = useQuery({
           <span className={`text-xs border px-2 py-1 rounded-md ${statusColor[order.status]}`}>
             {order.status}
           </span>
+             {['SUPER_ADMIN', 'ADMIN', 'COMMERCIAL_AGENT', 'PROCUREMENT_AGENT'].includes(user.role) && (
+              <button
+                onClick={() => router.push(`/dashboard/orders/${params.id}/edit`)}
+                className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                ✏ Edit
+              </button>
+            )}
            <button
               onClick={() => handlePrint()}
               className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"

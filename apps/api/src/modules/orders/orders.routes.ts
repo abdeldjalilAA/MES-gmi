@@ -305,4 +305,40 @@ export async function orderRoutes(fastify: FastifyInstance) {
     if (!order) return reply.status(404).send({ error: 'Engine not found' })
     return reply.send(order)
   })
+  // UPDATE ORDER (client info + requirements)
+  fastify.patch('/orders/:id', {
+    onRequest: [fastify.authenticate, fastify.authorize(['SUPER_ADMIN', 'ADMIN', 'COMMERCIAL_AGENT', 'PROCUREMENT_AGENT'])]
+  } as any, async (request, reply) => {
+    const { id } = request.params as any
+    const { clientName, clientPhone, clientEmail, requirements } = request.body as any
+
+    const order = await prisma.productionOrder.update({
+      where: { id },
+      data: { clientName, clientPhone, clientEmail, requirements }
+    })
+    return reply.send(order)
+  })
+
+  // DELETE COMPONENT
+  fastify.delete('/orders/:id/components/:componentId', {
+    onRequest: [fastify.authenticate, fastify.authorize(['SUPER_ADMIN', 'ADMIN', 'PROCUREMENT_AGENT'])]
+  } as any, async (request, reply) => {
+    const { componentId } = request.params as any
+    await prisma.engineComponent.delete({ where: { id: componentId } })
+    return reply.send({ success: true })
+  })
+
+  // UPDATE COMPONENT
+  fastify.patch('/orders/:id/components/:componentId', {
+    onRequest: [fastify.authenticate, fastify.authorize(['SUPER_ADMIN', 'ADMIN', 'PROCUREMENT_AGENT'])]
+  } as any, async (request, reply) => {
+    const { componentId } = request.params as any
+    const { equipmentModelId, serialNumber, notes } = request.body as any
+
+    const component = await prisma.engineComponent.update({
+      where: { id: componentId },
+      data: { equipmentModelId, serialNumber, notes }
+    })
+    return reply.send(component)
+  })
 }
