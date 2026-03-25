@@ -276,6 +276,33 @@ export async function orderRoutes(fastify: FastifyInstance) {
       },
       orderBy: { createdAt: 'desc' }
     })
-    return reply.send(orders)
+ return reply.send(orders)
+  })
+
+  // PUBLIC scan endpoint — no auth needed
+  fastify.get('/public/scan/:serial', async (request, reply) => {
+    const { serial } = request.params as any
+
+    const order = await prisma.productionOrder.findUnique({
+      where: { serialNumber: serial },
+      include: {
+        components: {
+          include: { equipmentModel: { include: { brand: true } } }
+        },
+        productionPhases: {
+          orderBy: { phaseNumber: 'asc' },
+          include: {
+            entries: {
+              include: { operator: { select: { name: true } } },
+              orderBy: { createdAt: 'asc' }
+            }
+          }
+        },
+        warranty: true
+      }
+    })
+
+    if (!order) return reply.status(404).send({ error: 'Engine not found' })
+    return reply.send(order)
   })
 }
