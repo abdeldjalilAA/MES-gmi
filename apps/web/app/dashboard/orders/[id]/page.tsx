@@ -8,6 +8,7 @@ import { socket } from '@/lib/socket'
 import { useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
 import { OrderFabricationDoc } from '@/components/documents/OrderFabricationDoc'
+import { QRLabelDoc } from '@/components/documents/QRLabelDoc'
 const PHASE_NAMES: Record<number, string> = {
   1: 'Iron / Tôle Transformation',
   2: 'Welding + Rouleuse + Cisaille',
@@ -49,6 +50,16 @@ export default function OrderDetailPage() {
       return res.data
     }
   })
+  const printLabelRef = useRef<HTMLDivElement>(null)
+  const handlePrintLabel = useReactToPrint({
+    contentRef: printLabelRef,
+    documentTitle: `Label-${order?.serialNumber}`,
+    onBeforePrint: () => {
+      return new Promise<void>((resolve) => {
+        setTimeout(resolve, 500)
+      })
+    }
+  })
 
   // Socket.io — real-time phase updates
   useEffect(() => {
@@ -76,9 +87,15 @@ export default function OrderDetailPage() {
     }
   }
   const printRef = useRef<HTMLDivElement>(null)
-  const handlePrint = useReactToPrint({
+ const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Ordre-Fabrication-${order?.serialNumber}`,
+    onBeforePrint: () => {
+      return new Promise<void>((resolve) => {
+        // Give JsBarcode time to render before printing
+        setTimeout(resolve, 500)
+      })
+    }
   })
 
 const { data: docSettings } = useQuery({
@@ -142,6 +159,12 @@ const { data: docSettings } = useQuery({
               className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
             >
               🖨 Print document
+            </button>
+            <button
+              onClick={() => handlePrintLabel()}
+              className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              🏷 Print label
             </button>
             
         </div>
@@ -287,6 +310,9 @@ const { data: docSettings } = useQuery({
       <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
        <OrderFabricationDoc ref={printRef} order={order} companySettings={docSettings} />
       </div>
+      <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+          <QRLabelDoc ref={printLabelRef} order={order} companySettings={docSettings} />
+        </div>
     </div>
   )
 }

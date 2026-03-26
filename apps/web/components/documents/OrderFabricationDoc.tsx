@@ -1,23 +1,63 @@
-import { forwardRef } from 'react'
+'use client'
+import { forwardRef, useEffect, useState } from 'react'
+import JsBarcode from 'jsbarcode'
 
 interface Props {
   order: any
   companySettings?: any
 }
 
+function generateBarcode(value: string): string {
+  try {
+    const canvas = document.createElement('canvas')
+    JsBarcode(canvas, value, {
+      format: 'CODE128',
+      width: 2,
+      height: 50,
+      displayValue: true,
+      fontSize: 12,
+      margin: 4,
+      background: '#ffffff',
+      lineColor: '#000000'
+    })
+    return canvas.toDataURL('image/png')
+  } catch {
+    return ''
+  }
+}
+
 export const OrderFabricationDoc = forwardRef<HTMLDivElement, Props>(
   ({ order, companySettings }, ref) => {
+    const [barcodeUrl, setBarcodeUrl] = useState('')
     const now = new Date().toLocaleDateString('fr-DZ', {
       year: 'numeric', month: 'long', day: 'numeric'
     })
 
+    useEffect(() => {
+      if (order?.serialNumber) {
+        const url = generateBarcode(order.serialNumber)
+        setBarcodeUrl(url)
+      }
+    }, [order?.serialNumber])
+
+    const PHASE_NAMES: Record<number, string> = {
+      1: 'Transformation tôle / fer',
+      2: 'Soudure + Rouleuse + Cisaille',
+      3: 'Peinture poudre',
+      4: 'Peinture châssis & échappement',
+      5: 'Câblage + tableau de commande',
+      6: 'Assemblage',
+      7: 'Test & mise en service',
+      8: 'Contrôle qualité + livraison',
+    }
+
     return (
-      <div ref={ref} className="bg-white text-black p-10 min-h-screen font-sans">
+      <div ref={ref} className="bg-white text-black p-10 font-sans" style={{ width: '210mm', minHeight: '297mm' }}>
 
         {/* Header */}
         <div className="border-b-2 border-gray-800 pb-6 mb-6">
           <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
               {companySettings?.logoUrl && (
                 <img src={companySettings.logoUrl} alt="Logo" style={{ height: '56px', objectFit: 'contain' }} />
               )}
@@ -37,12 +77,27 @@ export const OrderFabricationDoc = forwardRef<HTMLDivElement, Props>(
           </div>
         </div>
 
-        {/* Document title */}
+        {/* Document title + QR + Barcode */}
         <div className="text-center mb-8">
           <h2 className="text-xl font-bold uppercase tracking-widest border-2 border-gray-800 inline-block px-8 py-2">
             Ordre de Fabrication
           </h2>
           <p className="text-gray-500 text-sm mt-2">N° {order.serialNumber}</p>
+
+          <div className="flex items-center justify-center gap-8 mt-4">
+            {order.qrCode && (
+              <div className="text-center">
+                <img src={order.qrCode} alt="QR Code" style={{ width: '80px', height: '80px' }} />
+                <p className="text-xs text-gray-400 mt-1">QR Code</p>
+              </div>
+            )}
+            {barcodeUrl && (
+              <div className="text-center">
+                <img src={barcodeUrl} alt="Barcode" style={{ height: '60px' }} />
+                <p className="text-xs text-gray-400 mt-1">Code-barres</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Client + Engine info */}
@@ -124,22 +179,12 @@ export const OrderFabricationDoc = forwardRef<HTMLDivElement, Props>(
               </thead>
               <tbody>
                 {order.components.map((comp: any) => (
-                  <tr key={comp.id} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-3 py-2">
-                      {comp.equipmentModel?.brand?.category?.replace('_', ' ')}
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2">
-                      {comp.equipmentModel?.brand?.name}
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2">
-                      {comp.equipmentModel?.name}
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2 font-mono">
-                      {comp.serialNumber}
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-500">
-                      {comp.notes || '—'}
-                    </td>
+                  <tr key={comp.id}>
+                    <td className="border border-gray-300 px-3 py-2">{comp.equipmentModel?.brand?.category?.replace('_', ' ')}</td>
+                    <td className="border border-gray-300 px-3 py-2">{comp.equipmentModel?.brand?.name}</td>
+                    <td className="border border-gray-300 px-3 py-2">{comp.equipmentModel?.name}</td>
+                    <td className="border border-gray-300 px-3 py-2 font-mono">{comp.serialNumber}</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-500">{comp.notes || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -167,30 +212,18 @@ export const OrderFabricationDoc = forwardRef<HTMLDivElement, Props>(
             <tbody>
               {order.productionPhases?.map((phase: any) => (
                 <tr key={phase.phaseNumber}>
-                  <td className="border border-gray-300 px-3 py-2 text-center font-bold">
-                    {phase.phaseNumber}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2">
-                    {PHASE_NAMES[phase.phaseNumber]}
-                  </td>
+                  <td className="border border-gray-300 px-3 py-2 text-center font-bold">{phase.phaseNumber}</td>
+                  <td className="border border-gray-300 px-3 py-2">{PHASE_NAMES[phase.phaseNumber]}</td>
                   <td className="border border-gray-300 px-3 py-2">
                     <span className={`text-xs font-medium ${
                       phase.status === 'COMPLETED' ? 'text-green-600' :
                       phase.status === 'IN_PROGRESS' ? 'text-blue-600' :
                       phase.status === 'BLOCKED' ? 'text-red-600' : 'text-gray-400'
-                    }`}>
-                      {phase.status}
-                    </span>
+                    }`}>{phase.status}</span>
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-xs">
-                    {phase.startedAt ? new Date(phase.startedAt).toLocaleString('fr-DZ') : '—'}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-xs">
-                    {phase.completedAt ? new Date(phase.completedAt).toLocaleString('fr-DZ') : '—'}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-xs">
-                    {phase.delayMinutes != null ? `${phase.delayMinutes} min` : '—'}
-                  </td>
+                  <td className="border border-gray-300 px-3 py-2 text-xs">{phase.startedAt ? new Date(phase.startedAt).toLocaleString('fr-DZ') : '—'}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-xs">{phase.completedAt ? new Date(phase.completedAt).toLocaleString('fr-DZ') : '—'}</td>
+                  <td className="border border-gray-300 px-3 py-2 text-xs">{phase.delayMinutes != null ? `${phase.delayMinutes} min` : '—'}</td>
                   <td className="border border-gray-300 px-3 py-2 w-20"></td>
                 </tr>
               ))}
@@ -222,14 +255,3 @@ export const OrderFabricationDoc = forwardRef<HTMLDivElement, Props>(
 )
 
 OrderFabricationDoc.displayName = 'OrderFabricationDoc'
-
-const PHASE_NAMES: Record<number, string> = {
-  1: 'Transformation tôle / fer',
-  2: 'Soudure + Rouleuse + Cisaille',
-  3: 'Peinture poudre',
-  4: 'Peinture châssis & échappement',
-  5: 'Câblage + tableau de commande',
-  6: 'Assemblage',
-  7: 'Test & mise en service',
-  8: 'Contrôle qualité + livraison',
-}
