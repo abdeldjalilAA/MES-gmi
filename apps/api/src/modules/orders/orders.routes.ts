@@ -255,9 +255,12 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.status(201).send(component)
   })
   // GET ACTIVE ORDERS FOR OPERATOR VIEW
+// GET ACTIVE ORDERS FOR OPERATOR VIEW — filtered by operator's entries
   fastify.get('/operator/orders', {
     onRequest: [fastify.authenticate]
   } as any, async (request, reply) => {
+    const user = request.user as any
+
     const orders = await prisma.productionOrder.findMany({
       where: {
         status: { in: ['PENDING', 'IN_PRODUCTION', 'TESTING', 'QC'] }
@@ -267,16 +270,51 @@ export async function orderRoutes(fastify: FastifyInstance) {
           orderBy: { phaseNumber: 'asc' },
           include: {
             entries: {
-              include: { operator: { select: { name: true } } },
+              include: { operator: { select: { name: true, id: true } } },
               orderBy: { createdAt: 'desc' },
-              take: 1
             }
           }
         }
       },
       orderBy: { createdAt: 'desc' }
     })
- return reply.send(orders)
+
+    return reply.send(orders)
+  })
+
+  // OPERATOR PERSONAL STATS
+  fastify.get('/operator/stats', {
+    onRequest: [fastify.authenticate]
+  } as any, async (request, reply) => {
+    const user = request.user as any
+
+    const completedEntries = await prisma.phaseEntry.findMany({
+      where: {
+        operatorId: user.id,
+        action: 'completed'
+      },
+      include: {
+        phase: {
+          include: {
+            order: { select: { serialNumber: true, clientName: true, enclosureType: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    const totalCompleted = completedEntries.length
+    const thisMonth = completedEntries.filter(e => {
+      const d = new Date(e.createdAt)
+      const now = new Date()
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    }).length
+
+    return reply.send({
+      totalCompleted,
+      thisMonth,
+      recentHistory: completedEntries.slice(0, 10)
+    })
   })
 
   // PUBLIC scan endpoint — no auth needed
