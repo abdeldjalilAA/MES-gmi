@@ -42,7 +42,10 @@ export default function AdminPage() {
   const [footerText, setFooterText] = useState('')
   const [warrantyMonths, setWarrantyMonths] = useState('12')
 
-
+const [newMachineName, setNewMachineName] = useState('')
+  const [newMachinePhase, setNewMachinePhase] = useState('1')
+  const [newMachineMin, setNewMachineMin] = useState('1')
+  const [newMachineMax, setNewMachineMax] = useState('2')
 
   const { data: docSettings } = useQuery({
     queryKey: ['doc-settings'],
@@ -51,6 +54,15 @@ export default function AdminPage() {
       return res.data
     }
   })
+
+  const { data: machines } = useQuery({
+    queryKey: ['machines'],
+    queryFn: async () => {
+      const res = await api.get('/admin/machines')
+      return res.data
+    }
+  })
+
 
   useEffect(() => {
     if (docSettings) {
@@ -163,10 +175,35 @@ export default function AdminPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] })
   })
 
+  const createMachine = useMutation({
+    mutationFn: () => api.post('/admin/machines', {
+      name: newMachineName,
+      phase: newMachinePhase,
+      minOperators: newMachineMin,
+      maxOperators: newMachineMax
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['machines'] })
+      setNewMachineName('')
+    }
+  })
+
+  const deleteMachine = useMutation({
+    mutationFn: (id: string) => api.delete(`/admin/machines/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['machines'] })
+  })
+
+  const toggleMachineStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: string }) =>
+      api.patch(`/admin/machines/${id}/status`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['machines'] })
+  })
+
   if (!user) return null
 
- const tabs = [
+const tabs = [
     { id: 'brands', label: 'Equipment catalog' },
+    { id: 'machines', label: 'Machines' },
     { id: 'serial', label: 'Serial number' },
     { id: 'users', label: 'User management' },
     { id: 'documents', label: 'Document settings' },
@@ -200,7 +237,137 @@ export default function AdminPage() {
             </button>
           ))}
         </div>
+{/* ── MACHINES ── */}
+        {activeTab === 'machines' && (
+          <div className="grid grid-cols-2 gap-6">
 
+            {/* Machine list grouped by phase */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+              <h3 className="text-white font-semibold mb-4">All machines</h3>
+              <div className="space-y-2">
+                {Array.from({ length: 8 }, (_, i) => i + 1).map(phase => {
+                  const phaseMachines = machines?.filter((m: any) => m.phase === phase) || []
+                  if (phaseMachines.length === 0) return null
+                  return (
+                    <div key={phase}>
+                      <p className="text-gray-600 text-xs mb-1">Phase {phase}</p>
+                      {phaseMachines.map((machine: any) => (
+                        <div key={machine.id} className="flex items-center justify-between px-3 py-2 bg-gray-800 rounded-lg mb-1">
+                          <div>
+                            <p className="text-white text-sm">{machine.name}</p>
+                            <p className="text-gray-500 text-xs">{machine.minOperators}–{machine.maxOperators} operators</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleMachineStatus.mutate({
+                                id: machine.id,
+                                status: machine.status === 'OPERATIONAL' ? 'EN_PANNE' : 'OPERATIONAL'
+                              })}
+                              className={`text-xs px-2 py-0.5 rounded border ${
+                                machine.status === 'OPERATIONAL'
+                                  ? 'text-green-400 border-green-500/30 bg-green-500/10'
+                                  : 'text-red-400 border-red-500/30 bg-red-500/10'
+                              }`}
+                            >
+                              {machine.status === 'OPERATIONAL' ? 'OK' : 'En panne'}
+                            </button>
+                            <button
+                              onClick={() => deleteMachine.mutate(machine.id)}
+                              className="text-red-400 hover:text-red-300 text-xs"
+                            >✕</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+                {machines?.length === 0 && (
+                  <p className="text-gray-600 text-sm">No machines yet</p>
+                )}
+              </div>
+            </div>
+
+            {/* Add machine */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+              <h3 className="text-white font-semibold mb-4">Add machine</h3>
+              <div className="space-y-3">
+                <input
+                  value={newMachineName} onChange={e => setNewMachineName(e.target.value)}
+                  placeholder="Machine name (e.g. Plieuse Amada)"
+                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                />
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Phase</label>
+                  <select value={newMachinePhase} onChange={e => setNewMachinePhase(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                    {Array.from({ length: 8 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>Phase {i + 1}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Min operators</label>
+                    <input type="number" value={newMachineMin} onChange={e => setNewMachineMin(e.target.value)}
+                      min="1" max="10"
+                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Max operators</label>
+                    <input type="number" value={newMachineMax} onChange={e => setNewMachineMax(e.target.value)}
+                      min="1" max="10"
+                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => newMachineName && createMachine.mutate()}
+                  disabled={!newMachineName || createMachine.isPending}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium px-4 py-3 rounded-lg transition-colors"
+                >
+                  {createMachine.isPending ? 'Adding...' : 'Add machine'}
+                </button>
+              </div>
+
+              {/* Seed default machines */}
+              <div className="border-t border-gray-800 mt-4 pt-4">
+                <p className="text-gray-500 text-xs mb-2">Quick seed — add all default machines</p>
+                <button
+                  onClick={async () => {
+                    const defaults = [
+                      { name: 'Plieuse Amada', phase: 1, minOperators: 2, maxOperators: 3 },
+                      { name: 'Plieuse Durma', phase: 1, minOperators: 2, maxOperators: 3 },
+                      { name: 'Poinçonneuse Durma', phase: 1, minOperators: 1, maxOperators: 2 },
+                      { name: 'Poinçonneuse Amada', phase: 1, minOperators: 1, maxOperators: 2 },
+                      { name: 'Plasma Durma', phase: 1, minOperators: 2, maxOperators: 3 },
+                      { name: 'Laser 01', phase: 1, minOperators: 1, maxOperators: 2 },
+                      { name: 'Laser 02', phase: 1, minOperators: 1, maxOperators: 2 },
+                      { name: 'Laser 03', phase: 1, minOperators: 1, maxOperators: 2 },
+                      { name: 'Rouleuse', phase: 2, minOperators: 1, maxOperators: 2 },
+                      { name: 'Cisaille', phase: 2, minOperators: 1, maxOperators: 2 },
+                      { name: 'Poste soudure 01', phase: 2, minOperators: 1, maxOperators: 2 },
+                      { name: 'Poste soudure 02', phase: 2, minOperators: 1, maxOperators: 2 },
+                      { name: 'Four poudre', phase: 3, minOperators: 1, maxOperators: 3 },
+                      { name: 'Cabine peinture', phase: 4, minOperators: 1, maxOperators: 2 },
+                      { name: 'Poste câblage', phase: 5, minOperators: 1, maxOperators: 3 },
+                      { name: 'Poste assemblage', phase: 6, minOperators: 2, maxOperators: 4 },
+                      { name: 'Banc d\'essai', phase: 7, minOperators: 1, maxOperators: 2 },
+                      { name: 'Poste QC', phase: 8, minOperators: 1, maxOperators: 2 },
+                    ]
+                    for (const m of defaults) {
+                      await api.post('/admin/machines', m).catch(() => {})
+                    }
+                    queryClient.invalidateQueries({ queryKey: ['machines'] })
+                  }}
+                  className="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm py-2 rounded-lg transition-colors"
+                >
+                  Seed default machines
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* ── EQUIPMENT CATALOG ── */}
         {activeTab === 'brands' && (
           <div className="grid grid-cols-3 gap-6">
@@ -251,7 +418,9 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </div>
+                
                 ))}
+                
                 {brands?.length === 0 && (
                   <p className="text-gray-600 text-sm">No brands yet</p>
                 )}

@@ -232,5 +232,51 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const warranty = await prisma.warranty.findUnique({ where: { orderId: id } })
     return reply.send(warranty)
   })
+// ─── MACHINES ────────────────────────────────────────
 
+  fastify.get('/admin/machines', {
+    onRequest: [fastify.authenticate]
+  } as any, async (request, reply) => {
+    const { phase } = request.query as any
+    const machines = await prisma.machine.findMany({
+      where: phase ? { phase: parseInt(phase) } : {},
+      orderBy: [{ phase: 'asc' }, { name: 'asc' }]
+    })
+    return reply.send(machines)
+  })
+
+  fastify.post('/admin/machines', {
+    onRequest: adminOnly
+  } as any, async (request, reply) => {
+    const { name, phase, minOperators, maxOperators } = request.body as any
+    const machine = await prisma.machine.create({
+      data: {
+        name,
+        phase: parseInt(phase),
+        minOperators: parseInt(minOperators) || 1,
+        maxOperators: parseInt(maxOperators) || 2,
+      }
+    })
+    return reply.status(201).send(machine)
+  })
+
+  fastify.patch('/admin/machines/:id/status', {
+    onRequest: [fastify.authenticate]
+  } as any, async (request, reply) => {
+    const { id } = request.params as any
+    const { status, notes } = request.body as any
+    const machine = await prisma.machine.update({
+      where: { id },
+      data: { status, notes }
+    })
+    return reply.send(machine)
+  })
+
+  fastify.delete('/admin/machines/:id', {
+    onRequest: adminOnly
+  } as any, async (request, reply) => {
+    const { id } = request.params as any
+    await prisma.machine.delete({ where: { id } })
+    return reply.send({ success: true })
+  })
 }
