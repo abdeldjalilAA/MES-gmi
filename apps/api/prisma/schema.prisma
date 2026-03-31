@@ -72,6 +72,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+testResults      TestResult[]
+  conformityReports ConformityReport[]
+  
   phaseEntries     PhaseEntry[]
   supervisedPhases ProductionPhase[] @relation("PhaseSupervisor")
 }
@@ -188,6 +191,10 @@ model ProductionPhase {
 
   entries      PhaseEntry[]
 
+
+testResult      TestResult?
+  conformityReport ConformityReport?
+
   @@unique([orderId, phaseNumber])
 }
 
@@ -234,4 +241,36 @@ model DocumentSettings {
   footerText        String?
   warrantyMonths    Int      @default(12)
   updatedAt         DateTime @updatedAt
+}
+model TestResult {
+  id              String   @id @default(cuid())
+  load            Float?
+  voltage         Float?
+  frequency       Float?
+  temperature     Float?
+  duration        Int?
+  fuelConsumption Float?
+  noiseLevel      Float?
+  result          String   // 'PASS' or 'FAIL'
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  phase           ProductionPhase @relation(fields: [phaseId], references: [id])
+  phaseId         String @unique
+
+  operator        User @relation(fields: [operatorId], references: [id])
+  operatorId      String
+}
+
+model ConformityReport {
+  id          String   @id @default(cuid())
+  isConform   Boolean
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  phase       ProductionPhase @relation(fields: [phaseId], references: [id])
+  phaseId     String @unique
+
+  inspector   User @relation(fields: [inspectorId], references: [id])
+  inspectorId String
 }

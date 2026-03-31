@@ -246,7 +246,7 @@ const { data: docSettings } = useQuery({
                   <span className={`text-xs border px-2 py-1 rounded-md ${statusColor[phase.status]}`}>
                     {phase.status}
                   </span>
-                  {phase.status === 'PENDING' && (
+                {phase.status === 'PENDING' && (
                     <button
                       onClick={() => handlePhaseAction(order.id, phase.phaseNumber, 'started')}
                       className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg transition-colors"
@@ -254,7 +254,7 @@ const { data: docSettings } = useQuery({
                       Start
                     </button>
                   )}
-                  {phase.status === 'IN_PROGRESS' && (
+                  {phase.status === 'IN_PROGRESS' && phase.phaseNumber !== 7 && phase.phaseNumber !== 8 && (
                     <div className="flex gap-2">
                       <button
                         onClick={() => handlePhaseAction(order.id, phase.phaseNumber, 'completed')}
@@ -268,6 +268,50 @@ const { data: docSettings } = useQuery({
                       >
                         Block
                       </button>
+                    </div>
+                  )}
+                  {phase.status === 'IN_PROGRESS' && phase.phaseNumber === 7 && (
+                    <button
+                      onClick={() => router.push(`/dashboard/orders/${order.id}/test`)}
+                      className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg transition-colors"
+                    >
+                      🔬 Banc d'essai
+                    </button>
+                  )}
+                  {phase.status === 'IN_PROGRESS' && phase.phaseNumber === 8 && (
+                    <button
+                      onClick={() => router.push(`/dashboard/orders/${order.id}/conformity`)}
+                      className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded-lg transition-colors"
+                    >
+                      ✅ Conformité
+                    </button>
+                  )}
+                  {phase.status === 'BLOCKED' && (
+                    <div className="flex gap-2">
+                      {phase.phaseNumber === 7 && (
+                        <button
+                          onClick={() => router.push(`/dashboard/orders/${order.id}/test`)}
+                          className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg transition-colors"
+                        >
+                          🔬 Retest
+                        </button>
+                      )}
+                      {phase.phaseNumber === 8 && (
+                        <button
+                          onClick={() => router.push(`/dashboard/orders/${order.id}/conformity`)}
+                          className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded-lg transition-colors"
+                        >
+                          ✅ Conformité
+                        </button>
+                      )}
+                      {phase.phaseNumber !== 7 && phase.phaseNumber !== 8 && (
+                        <button
+                          onClick={() => handlePhaseAction(order.id, phase.phaseNumber, 'started')}
+                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg transition-colors"
+                        >
+                          Restart
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
