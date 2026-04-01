@@ -48,7 +48,8 @@ export default function OrderDetailPage() {
     queryFn: async () => {
       const res = await api.get(`/orders/${params.id}`)
       return res.data
-    }
+    },
+    staleTime: 0
   })
   const printLabelRef = useRef<HTMLDivElement>(null)
   const handlePrintLabel = useReactToPrint({
@@ -326,6 +327,53 @@ const { data: docSettings } = useQuery({
                   {phase.delayMinutes !== null && phase.delayMinutes !== undefined && (
                     <span>Duration: {phase.delayMinutes} min</span>
                   )}
+                </div>
+              )}
+
+              {/* Test result for phase 7 */}
+              {phase.phaseNumber === 7 && phase.testResult && (
+                <div className="mt-3 bg-gray-800 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs mb-2">Banc d'essai results</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    {phase.testResult.load && <span className="text-gray-300">Load: <span className="text-white">{phase.testResult.load} KVA</span></span>}
+                    {phase.testResult.voltage && <span className="text-gray-300">Voltage: <span className="text-white">{phase.testResult.voltage} V</span></span>}
+                    {phase.testResult.frequency && <span className="text-gray-300">Freq: <span className="text-white">{phase.testResult.frequency} Hz</span></span>}
+                    {phase.testResult.temperature && <span className="text-gray-300">Temp: <span className="text-white">{phase.testResult.temperature}°C</span></span>}
+                    {phase.testResult.noiseLevel && <span className="text-gray-300">Noise: <span className="text-white">{phase.testResult.noiseLevel} dB</span></span>}
+                    {phase.testResult.duration && <span className="text-gray-300">Duration: <span className="text-white">{phase.testResult.duration} min</span></span>}
+                  </div>
+                  <span className={`mt-2 inline-block text-xs font-bold px-2 py-0.5 rounded ${
+                    phase.testResult.result === 'PASS' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                  }`}>{phase.testResult.result}</span>
+                </div>
+              )}
+
+              {/* Conformity for phase 8 */}
+              {phase.phaseNumber === 8 && phase.conformityReport && (
+                <div className={`mt-3 rounded-lg p-3 ${
+                  phase.conformityReport.isConform ? 'bg-green-500/10' : 'bg-red-500/10'
+                }`}>
+                  <span className={`text-xs font-bold ${phase.conformityReport.isConform ? 'text-green-400' : 'text-red-400'}`}>
+                    {phase.conformityReport.isConform ? '✓ CONFORME' : '✗ NON CONFORME'}
+                  </span>
+                  {phase.conformityReport.notes && (
+                    <p className="text-gray-400 text-xs mt-1">{phase.conformityReport.notes}</p>
+                  )}
+                </div>
+              )}
+
+             {/* Machine used */}
+              {phase.entries?.some((e: any) => e.machine) && (
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  {[...new Map(phase.entries.filter((e: any) => e.machine).map((e: any) => [e.machine.id, e.machine])).values()].map((machine: any) => (
+                    <span key={machine.id} className={`text-xs px-2 py-0.5 rounded border ${
+                      machine.status === 'EN_PANNE'
+                        ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                        : 'bg-gray-800 text-gray-400 border-gray-700'
+                    }`}>
+                      🔧 {machine.name}
+                    </span>
+                  ))}
                 </div>
               )}
 

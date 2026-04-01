@@ -1,15 +1,21 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 
 export default function Home() {
   const router = useRouter()
-  const user = useAuthStore((s) => s.user)
+  const { user, setAuth } = useAuthStore()
+  const [checked, setChecked] = useState(false)
 
   useEffect(() => {
-    if (user) {
-      if (['OPERATOR', 'PHASE_SUPERVISOR'].includes(user.role)) {
+    // Load from localStorage first
+    const token = localStorage.getItem('token')
+    const stored = localStorage.getItem('user')
+    if (token && stored) {
+      const parsedUser = JSON.parse(stored)
+      setAuth(parsedUser, token)
+      if (['OPERATOR', 'PHASE_SUPERVISOR'].includes(parsedUser.role)) {
         router.push('/operator')
       } else {
         router.push('/dashboard')
@@ -17,7 +23,8 @@ export default function Home() {
     } else {
       router.push('/login')
     }
-  }, [user, router])
+    setChecked(true)
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">

@@ -9,8 +9,11 @@ export default function DashboardPage() {
   const router = useRouter()
   const { user, logout } = useAuthStore()
 
-  useEffect(() => {
+useEffect(() => {
     if (!user) router.push('/login')
+    if (user && ['OPERATOR', 'PHASE_SUPERVISOR'].includes(user.role)) {
+      router.push('/operator')
+    }
   }, [user, router])
 
   const { data: orders, isLoading } = useQuery({

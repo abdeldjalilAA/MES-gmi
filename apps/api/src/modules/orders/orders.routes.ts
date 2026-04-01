@@ -130,6 +130,8 @@ export async function orderRoutes(fastify: FastifyInstance) {
           orderBy: { phaseNumber: 'asc' },
           include: {
             supervisor: { select: { name: true, role: true } },
+            testResult: true,
+            conformityReport: { include: { inspector: { select: { name: true } } } },
             entries: {
               include: {
                 operator: { select: { name: true, role: true } },
