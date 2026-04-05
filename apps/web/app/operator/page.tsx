@@ -95,6 +95,12 @@ export default function OperatorPage() {
             </div>
           </div>
           <button
+              onClick={() => router.push('/dashboard/machines')}
+              className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Queue
+            </button>
+          <button
             onClick={() => { logout(); router.push('/login') }}
             className="text-gray-500 hover:text-white text-sm transition-colors"
           >

@@ -199,14 +199,12 @@ export default function MachinesPage() {
                   <div>
                     <h2 className="text-white font-bold text-xl">{machineDetail?.name || selectedMachine.name}</h2>
                     <p className="text-gray-500 text-sm">Phase {selectedPhase} — {PHASE_NAMES[selectedPhase]}</p>
-                    {machineDetail?.assignments?.length > 0 && (
-                      <div className="flex gap-2 mt-2">
-                        {machineDetail.assignments.map((a: any) => (
-                          <span key={a.id} className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">
-                            {a.operator.name}
-                          </span>
-                        ))}
-                      </div>
+                   {['SUPER_ADMIN', 'ADMIN', 'PHASE_SUPERVISOR'].includes(user.role) && (
+                      <AssignOperator
+                        machineId={selectedMachine.id}
+                        currentAssignments={machineDetail?.assignments || []}
+                        onAssigned={() => queryClient.invalidateQueries({ queryKey: ['machine-detail'] })}
+                      />
                     )}
                   </div>
                   <button
@@ -217,6 +215,8 @@ export default function MachinesPage() {
                     + Add to queue
                   </button>
                 </div>
+
+                
 
                 {/* Queue entries */}
                 <div className="space-y-3">
@@ -295,6 +295,7 @@ export default function MachinesPage() {
                 </div>
               </div>
             )}
+            
           </div>
         </div>
       </main>
@@ -343,6 +344,80 @@ export default function MachinesPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      
+    </div>
+  )
+}
+
+function AssignOperator({ machineId, currentAssignments, onAssigned }: {
+  machineId: string
+  currentAssignments: any[]
+  onAssigned: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [operatorId, setOperatorId] = useState('')
+
+  const { data: users } = useQuery({
+    queryKey: ['operators'],
+    queryFn: async () => {
+      const res = await api.get('/admin/users')
+      return res.data.filter((u: any) =>
+        ['OPERATOR', 'PHASE_SUPERVISOR'].includes(u.role) && u.isActive
+      )
+    },
+    enabled: open
+  })
+
+  const assign = useMutation({
+    mutationFn: () => api.post(`/machines/${machineId}/assign`, { operatorId }),
+    onSuccess: () => { onAssigned(); setOpen(false); setOperatorId('') }
+  })
+
+  const unassign = useMutation({
+    mutationFn: (opId: string) => api.delete(`/machines/${machineId}/assign/${opId}`),
+    onSuccess: () => onAssigned()
+  })
+
+  return (
+    <div className="mt-3">
+      {currentAssignments.length > 0 && (
+        <div className="flex gap-2 flex-wrap mb-2">
+          {currentAssignments.map((a: any) => (
+            <span key={a.id} className="flex items-center gap-1 text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">
+              {a.operator.name}
+              <button onClick={() => unassign.mutate(a.operator.id)}
+                className="text-blue-600 hover:text-red-400 ml-1">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      {!open ? (
+        <button onClick={() => setOpen(true)}
+          className="text-xs text-gray-500 hover:text-white transition-colors">
+          + Assign operator
+        </button>
+      ) : (
+        <div className="flex gap-2 mt-1">
+          <select value={operatorId} onChange={e => setOperatorId(e.target.value)}
+            className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-blue-500">
+            <option value="">Select operator...</option>
+            {users?.filter((u: any) => !currentAssignments.find((a: any) => a.operator.id === u.id))
+              .map((u: any) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+          </select>
+          <button onClick={() => operatorId && assign.mutate()}
+            disabled={!operatorId}
+            className="text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-3 py-1 rounded-lg">
+            Assign
+          </button>
+          <button onClick={() => setOpen(false)}
+            className="text-xs text-gray-500 hover:text-white px-2">
+            Cancel
+          </button>
         </div>
       )}
     </div>
