@@ -70,6 +70,12 @@ useEffect(() => {
             >
               Archive
             </button>
+            <button
+              onClick={() => router.push('/dashboard/machines')}
+              className="text-gray-400 hover:text-white text-sm transition-colors"
+            >
+              Machines
+            </button>
            {['SUPER_ADMIN', 'ADMIN'].includes(user.role) && (
               <button
                 onClick={() => router.push('/dashboard/admin')}

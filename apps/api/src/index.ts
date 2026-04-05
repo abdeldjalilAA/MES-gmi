@@ -7,6 +7,7 @@ import { authRoutes } from './modules/auth/auth.routes'
 import { orderRoutes } from './modules/orders/orders.routes'
 import { adminRoutes } from './modules/admin/admin.routes'
 import { productionRoutes } from './modules/production/production.routes'
+import { queueRoutes } from './modules/production/queue.routes'
 const app = Fastify({ logger: true })
 
 // Declare io decorator before start
@@ -23,6 +24,7 @@ app.register(authRoutes)
 app.register(orderRoutes)
 app.register(adminRoutes)
 app.register(productionRoutes)
+app.register(queueRoutes)
 app.get('/health', async () => {
   return { status: 'ok', app: 'GenTrack API' }
 })
@@ -46,6 +48,9 @@ const start = async () => {
 
       socket.on('join-order', (orderId: string) => {
         socket.join(`order:${orderId}`)
+      })
+      socket.on('join-machine', (machineId: string) => {
+        socket.join(`machine:${machineId}`)
       })
 
       socket.on('disconnect', () => {

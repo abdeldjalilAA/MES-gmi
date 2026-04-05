@@ -72,11 +72,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-testResults      TestResult[]
-  conformityReports ConformityReport[]
-  
-  phaseEntries     PhaseEntry[]
-  supervisedPhases ProductionPhase[] @relation("PhaseSupervisor")
+  phaseEntries       PhaseEntry[]
+  supervisedPhases   ProductionPhase[]  @relation("PhaseSupervisor")
+  testResults        TestResult[]
+  conformityReports  ConformityReport[]
+  machineAssignments MachineAssignment[]
+  queueEntries       MachineQueueEntry[]
 }
 
 // ─── SERIAL NUMBER CONFIG ─────────────────────────────
@@ -92,7 +93,7 @@ model SerialConfig {
   updatedAt   DateTime @updatedAt
 }
 
-// ─── EQUIPMENT CATALOG (admin managed) ───────────────
+// ─── EQUIPMENT CATALOG ───────────────────────────────
 
 model EquipmentBrand {
   id        String            @id @default(cuid())
@@ -140,6 +141,7 @@ model ProductionOrder {
   components       EngineComponent[]
   productionPhases ProductionPhase[]
   warranty         Warranty?
+  queueEntries     MachineQueueEntry[]
 }
 
 // ─── ENGINE COMPONENTS ────────────────────────────────
@@ -170,6 +172,50 @@ model Machine {
   updatedAt    DateTime      @updatedAt
 
   phaseEntries PhaseEntry[]
+  assignments  MachineAssignment[]
+  queueEntries MachineQueueEntry[]
+}
+
+// ─── MACHINE ASSIGNMENTS ─────────────────────────────
+
+model MachineAssignment {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+
+  machine    Machine  @relation(fields: [machineId], references: [id])
+  machineId  String
+
+  operator   User     @relation(fields: [operatorId], references: [id])
+  operatorId String
+
+  @@unique([machineId, operatorId])
+}
+
+// ─── MACHINE QUEUE ────────────────────────────────────
+
+model MachineQueueEntry {
+  id            String    @id @default(cuid())
+  position      Int
+  status        String    @default("WAITING")
+  isUrgent      Boolean   @default(false)
+  startedAt     DateTime?
+  pausedAt      DateTime?
+  completedAt   DateTime?
+  waitMinutes   Int?
+  activeMinutes Int?
+  createdAt     DateTime  @default(now())
+
+  machine    Machine         @relation(fields: [machineId], references: [id])
+  machineId  String
+
+  order      ProductionOrder @relation(fields: [orderId], references: [id])
+  orderId    String
+
+  phase      ProductionPhase @relation(fields: [phaseId], references: [id])
+  phaseId    String
+
+  operator   User?           @relation(fields: [operatorId], references: [id])
+  operatorId String?
 }
 
 // ─── PRODUCTION PHASES ───────────────────────────────
@@ -189,11 +235,10 @@ model ProductionPhase {
   supervisor   User?  @relation("PhaseSupervisor", fields: [supervisorId], references: [id])
   supervisorId String?
 
-  entries      PhaseEntry[]
-
-
-testResult      TestResult?
+  entries          PhaseEntry[]
+  testResult       TestResult?
   conformityReport ConformityReport?
+  queueEntries     MachineQueueEntry[]
 
   @@unique([orderId, phaseNumber])
 }
@@ -216,6 +261,43 @@ model PhaseEntry {
   machineId  String?
 }
 
+// ─── TEST RESULT ─────────────────────────────────────
+
+model TestResult {
+  id              String   @id @default(cuid())
+  load            Float?
+  voltage         Float?
+  frequency       Float?
+  temperature     Float?
+  duration        Int?
+  fuelConsumption Float?
+  noiseLevel      Float?
+  result          String
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  phase      ProductionPhase @relation(fields: [phaseId], references: [id])
+  phaseId    String          @unique
+
+  operator   User @relation(fields: [operatorId], references: [id])
+  operatorId String
+}
+
+// ─── CONFORMITY REPORT ───────────────────────────────
+
+model ConformityReport {
+  id          String   @id @default(cuid())
+  isConform   Boolean
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  phase       ProductionPhase @relation(fields: [phaseId], references: [id])
+  phaseId     String          @unique
+
+  inspector   User @relation(fields: [inspectorId], references: [id])
+  inspectorId String
+}
+
 // ─── WARRANTY ────────────────────────────────────────
 
 model Warranty {
@@ -232,45 +314,12 @@ model Warranty {
 
 // ─── DOCUMENT SETTINGS ───────────────────────────────
 
-
 model DocumentSettings {
-  id                String   @id @default(cuid())
-  companyName       String
-  logoUrl           String?
-  headerText        String?
-  footerText        String?
-  warrantyMonths    Int      @default(12)
-  updatedAt         DateTime @updatedAt
-}
-model TestResult {
-  id              String   @id @default(cuid())
-  load            Float?
-  voltage         Float?
-  frequency       Float?
-  temperature     Float?
-  duration        Int?
-  fuelConsumption Float?
-  noiseLevel      Float?
-  result          String   // 'PASS' or 'FAIL'
-  notes           String?
-  createdAt       DateTime @default(now())
-
-  phase           ProductionPhase @relation(fields: [phaseId], references: [id])
-  phaseId         String @unique
-
-  operator        User @relation(fields: [operatorId], references: [id])
-  operatorId      String
-}
-
-model ConformityReport {
-  id          String   @id @default(cuid())
-  isConform   Boolean
-  notes       String?
-  createdAt   DateTime @default(now())
-
-  phase       ProductionPhase @relation(fields: [phaseId], references: [id])
-  phaseId     String @unique
-
-  inspector   User @relation(fields: [inspectorId], references: [id])
-  inspectorId String
+  id             String   @id @default(cuid())
+  companyName    String
+  logoUrl        String?
+  headerText     String?
+  footerText     String?
+  warrantyMonths Int      @default(12)
+  updatedAt      DateTime @updatedAt
 }
