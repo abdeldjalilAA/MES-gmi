@@ -129,12 +129,15 @@ export async function queueRoutes(fastify: FastifyInstance) {
   })
 
   // COMPLETE active entry
+// COMPLETE active entry
   fastify.post('/machines/:machineId/queue/:entryId/complete', {
     onRequest: [fastify.authenticate]
   } as any, async (request, reply) => {
     const { machineId, entryId } = request.params as any
 
-    const entry = await prisma.machineQueueEntry.findUnique({ where: { id: entryId } })
+    const entry = await prisma.machineQueueEntry.findUnique({
+      where: { id: entryId }
+    })
     if (!entry) return reply.status(404).send({ error: 'Entry not found' })
 
     const activeMinutes = entry.startedAt
@@ -150,17 +153,82 @@ export async function queueRoutes(fastify: FastifyInstance) {
       }
     })
 
-    // Auto-start next waiting
+    // Auto-start next waiting in this machine
     const next = await prisma.machineQueueEntry.findFirst({
       where: { machineId, status: 'WAITING' },
       orderBy: [{ isUrgent: 'desc' }, { position: 'asc' }]
     })
-
     if (next) {
       await prisma.machineQueueEntry.update({
         where: { id: next.id },
         data: { status: 'ACTIVE', startedAt: new Date() }
       })
+    }
+
+    // Check if all queue entries for this order+phase are DONE
+    const remainingEntries = await prisma.machineQueueEntry.findMany({
+      where: {
+        orderId: entry.orderId,
+        phaseId: entry.phaseId,
+        status: { in: ['WAITING', 'ACTIVE', 'PAUSED'] }
+      }
+    })
+
+    if (remainingEntries.length === 0) {
+      // All machines done for this phase — auto-complete the phase
+      const phase = await prisma.productionPhase.findUnique({
+        where: { id: entry.phaseId }
+      })
+
+      if (phase && phase.status !== 'COMPLETED') {
+        const startedAt = phase.startedAt || new Date()
+        const delayMinutes = Math.floor((Date.now() - startedAt.getTime()) / 60000)
+
+        await prisma.productionPhase.update({
+          where: { id: entry.phaseId },
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+            delayMinutes
+          }
+        })
+
+        // Log completion entry
+        const user = request.user as any
+        await prisma.phaseEntry.create({
+          data: {
+            action: 'completed',
+            notes: 'Auto-completed — all machines done',
+            phaseId: entry.phaseId,
+            operatorId: user.id
+          }
+        })
+
+        // Update order status
+        if (phase.phaseNumber === 1) {
+          await prisma.productionOrder.update({
+            where: { id: entry.orderId },
+            data: { status: 'IN_PRODUCTION' }
+          })
+        } else if (phase.phaseNumber === 6) {
+          await prisma.productionOrder.update({
+            where: { id: entry.orderId },
+            data: { status: 'TESTING' }
+          })
+        } else if (phase.phaseNumber === 7) {
+          await prisma.productionOrder.update({
+            where: { id: entry.orderId },
+            data: { status: 'QC' }
+          })
+        }
+
+        // Emit phase update
+        fastify.io.to(`order:${entry.orderId}`).emit('phase-updated', {
+          orderId: entry.orderId,
+          phaseNumber: phase.phaseNumber,
+          status: 'COMPLETED'
+        })
+      }
     }
 
     fastify.io.to(`machine:${machineId}`).emit('queue-updated', { machineId })

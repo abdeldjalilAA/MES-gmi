@@ -95,10 +95,21 @@ export async function orderRoutes(fastify: FastifyInstance) {
       where: { serialNumber: serial },
       include: {
         components: { include: { equipmentModel: { include: { brand: true } } } },
-        productionPhases: {
+       productionPhases: {
           orderBy: { phaseNumber: 'asc' },
           include: {
             supervisor: { select: { name: true, role: true } },
+            testResult: true,
+            conformityReport: {
+              include: { inspector: { select: { name: true } } }
+            },
+            queueEntries: {
+              include: {
+                machine: { select: { id: true, name: true, status: true } },
+                operator: { select: { name: true } }
+              },
+              orderBy: { createdAt: 'asc' }
+            },
             entries: {
               include: {
                 operator: { select: { name: true, role: true } },

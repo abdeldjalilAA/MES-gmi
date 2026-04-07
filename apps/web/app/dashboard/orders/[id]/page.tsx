@@ -255,13 +255,14 @@ const { data: docSettings } = useQuery({
                       Start
                     </button>
                   )}
-                  {phase.status === 'IN_PROGRESS' && phase.phaseNumber !== 7 && phase.phaseNumber !== 8 && (
-                    <div className="flex gap-2">
+              {phase.status === 'IN_PROGRESS' && phase.phaseNumber !== 7 && phase.phaseNumber !== 8 && (
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-gray-600">Auto-completes when all machines done</span>
                       <button
                         onClick={() => handlePhaseAction(order.id, phase.phaseNumber, 'completed')}
                         className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg transition-colors"
                       >
-                        Complete
+                        Force complete
                       </button>
                       <button
                         onClick={() => handlePhaseAction(order.id, phase.phaseNumber, 'blocked')}
@@ -362,20 +363,7 @@ const { data: docSettings } = useQuery({
                 </div>
               )}
 
-             {/* Machine used */}
-              {phase.entries?.some((e: any) => e.machine) && (
-                <div className="mt-2 flex gap-2 flex-wrap">
-                  {[...new Map(phase.entries.filter((e: any) => e.machine).map((e: any) => [e.machine.id, e.machine])).values()].map((machine: any) => (
-                    <span key={machine.id} className={`text-xs px-2 py-0.5 rounded border ${
-                      machine.status === 'EN_PANNE'
-                        ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                        : 'bg-gray-800 text-gray-400 border-gray-700'
-                    }`}>
-                      🔧 {machine.name}
-                    </span>
-                  ))}
-                </div>
-              )}
+             
 
               {/* Phase entries log */}
               {phase.entries?.length > 0 && (
